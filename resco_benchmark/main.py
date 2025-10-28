@@ -1,113 +1,134 @@
-import pathlib
 import os
-import multiprocessing as mp
+import time
+import logging
+import importlib
 
+from resco_benchmark.config.config import config as cfg
+from resco_benchmark.utils.logs import parse_logs
+from resco_benchmark.utils.utils import cleanup_log_dir
+from resco_benchmark.multi_signal import MultiSignal
+import resco_benchmark.mdp_options.states as states
+import resco_benchmark.mdp_options.rewards as rewards
+import resco_benchmark.config.optuna_objectives as objectives
+from resco_benchmark.mdp_options.state_builder import StateBuilder, RewardBuilder
 
-from multi_signal import MultiSignal
-import argparse
-from resco_benchmark.config.agent_config import agent_configs
-from resco_benchmark.config.map_config import map_configs
-from resco_benchmark.config.mdp_config import mdp_configs
+logger = logging.getLogger(__name__)
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--agent", type=str, default='STOCHASTIC',
-                    choices=['STOCHASTIC', 'MAXWAVE', 'MAXPRESSURE', 'IDQN', 'IPPO', 'MPLight', 'MA2C', 'FMA2C',
-                             'MPLightFULL', 'FMA2CFull', 'FMA2CVAL'])
-    ap.add_argument("--trials", type=int, default=1)
-    ap.add_argument("--eps", type=int, default=100)
-    ap.add_argument("--procs", type=int, default=1)
-    ap.add_argument("--map", type=str, default='ingolstadt1',
-                    choices=['grid4x4', 'arterial4x4', 'ingolstadt1', 'ingolstadt7', 'ingolstadt21',
-                             'cologne1', 'cologne3', 'cologne8',
-                             ])
-    ap.add_argument("--pwd", type=str, default=os.path.dirname(__file__))
-    ap.add_argument("--log_dir", type=str, default=os.path.join(os.path.dirname(os.getcwd()), 'results' + os.sep))
-    ap.add_argument("--gui", type=bool, default=False)
-    ap.add_argument("--libsumo", type=bool, default=False)
-    ap.add_argument("--tr", type=int, default=0)  # Can't multi-thread with libsumo, provide a trial number
-    ap.add_argument("--save_freq", type=int, default=100)
-    ap.add_argument("--load", type=bool, default=False)
-    args = ap.parse_args()
+    if cfg.optuna_objective is not None:
+        # TODO add DB setup instructions to docs (see optuna docs for now)
+        import optuna
 
-    if args.libsumo and 'LIBSUMO_AS_TRACI' not in os.environ:
-        raise EnvironmentError("Set LIBSUMO_AS_TRACI to nonempty value to enable libsumo")
+        if cfg.optuna_trials is not None:
+            callbacks = [
+                optuna.study.MaxTrialsCallback(
+                    int(cfg.optuna_trials), states=(optuna.trial.TrialState.COMPLETE,)
+                )
+            ]
+        else:
+            callbacks = None
 
-    if args.procs == 1 or args.libsumo:
-        run_trial(args, args.tr)
+        study = optuna.create_study(
+            study_name=cfg.run_name,
+            storage="mysql+pymysql://root@localhost/optuna",  # TODO not root
+            load_if_exists=True,
+            sampler=optuna.samplers.CmaEsSampler(),
+        )
+
+        obj = getattr(objectives, cfg.optuna_objective)
+        study.optimize(lambda trial: obj(trial, run_trial), callbacks=callbacks)
     else:
-        pool = mp.Pool(processes=args.procs)
-        for trial in range(1, args.trials+1):
-            pool.apply_async(run_trial, args=(args, trial))
-        pool.close()
-        pool.join()
+        start = time.time()
+        run_trial()
+        print("Time taken:", time.time() - start)
 
 
-def run_trial(args, trial):
-    mdp_config = mdp_configs.get(args.agent)
-    if mdp_config is not None:
-        mdp_map_config = mdp_config.get(args.map)
-        if mdp_map_config is not None:
-            mdp_config = mdp_map_config
-        mdp_configs[args.agent] = mdp_config
+def run_trial():
+    print(f"cfg.run_name: {cfg.run_name}")
+    if cfg.route is not None:
+        cfg.route = str(os.path.join(os.path.dirname(__file__), cfg.route))
 
-    agt_config = agent_configs[args.agent]
-    agt_config['save_freq'] = args.save_freq
-    agt_config['load'] = args.load
-    agt_map_config = agt_config.get(args.map)
-    if agt_map_config is not None:
-        agt_config = agt_map_config
-    alg = agt_config['agent']
+    if cfg == "grid4x4" or cfg == "arterial4x4":
+        if not os.path.exists(cfg.route):
+            raise EnvironmentError(
+                "You must decompress environment files defining traffic flow"
+            )
 
-    if mdp_config is not None:
-        agt_config['mdp'] = mdp_config
-        management = agt_config['mdp'].get('management')
-        if management is not None:    # Save some time and precompute the reverse mapping
-            supervisors = dict()
-            for manager in management:
-                workers = management[manager]
-                for worker in workers:
-                    supervisors[worker] = manager
-            mdp_config['supervisors'] = supervisors
+    alg = getattr(importlib.import_module("resco_benchmark.agents."+cfg.module), cfg.algorithm)
+    state_fn = getattr(states, cfg.state)
+    reward_fn = getattr(rewards, cfg.reward)
 
-    map_config = map_configs[args.map]
-    num_steps_eps = int((map_config['end_time'] - map_config['start_time']) / map_config['step_length'])
-    route = map_config['route']
-    if route is not None: route = os.path.join(args.pwd, route)
-    if args.map == 'grid4x4' or args.map == 'arterial4x4':
-        if not os.path.exists(route): raise EnvironmentError("You must decompress environment files defining traffic flow")
+    if cfg.state == "state_builder":
+        cfg.state_builder = StateBuilder(cfg.state_builder)
+    if cfg.reward == "reward_builder":
+        cfg.reward_builder = RewardBuilder(cfg.reward_builder)
 
-    env = MultiSignal(alg.__name__+'-tr'+str(trial),
-                      args.map,
-                      os.path.join(args.pwd, map_config['net']),
-                      agt_config['state'],
-                      agt_config['reward'],
-                      route=route, step_length=map_config['step_length'], yellow_length=map_config['yellow_length'],
-                      step_ratio=map_config['step_ratio'], end_time=map_config['end_time'],
-                      max_distance=agt_config['max_distance'], lights=map_config['lights'], gui=args.gui,
-                      log_dir=args.log_dir, libsumo=args.libsumo, warmup=map_config['warmup'])
-
-    agt_config['episodes'] = int(args.eps * 0.8)    # schedulers decay over 80% of steps
-    agt_config['steps'] = agt_config['episodes'] * num_steps_eps
-    agt_config['log_dir'] = os.path.join(args.log_dir, env.connection_name)
-    agt_config['num_lights'] = len(env.all_ts_ids)
+    env = MultiSignal(state_fn, reward_fn)
 
     # Get agent id's, observation shapes, and action sizes from env
-    obs_act = dict()
-    for key in env.obs_shape:
-        obs_act[key] = [env.obs_shape[key], len(env.phases[key]) if key in env.phases else None]
-    agent = alg(agt_config, obs_act, args.map, trial)
+    agent = alg(env.obs_act)
+    if cfg.load_model is not None:
+        try:
+            agent.load()
+        except Exception as e:
+            logger.error("Could not load model, are the RESCO parameters the same?", e)
+            raise e
 
-    for _ in range(args.eps):
-        obs = env.reset()
-        done = False
-        while not done:
+    if cfg.curriculum is None:
+        adj_len = 1
+    else:
+        adj_len = len(cfg.curriculum)
+
+    minimum_length = (
+        cfg.episodes * adj_len
+    )  # TODO test if cfg.testing is ok for curriculum
+
+    terminated = False
+    for __ in range(minimum_length):
+        obs, info = env.reset()
+        if terminated and cfg.delete_episode_logs:
+            parse_logs()
+        terminated = False
+        while not terminated:
             act = agent.act(obs)
-            obs, rew, done, info = env.step(act)
-            agent.observe(obs, rew, done, info)
+            obs, rew, terminated, truncated, info = env.step(act)
+            agent.observe(obs, rew, terminated, info)
+
+            if "init_ender" in cfg and cfg.init_ender:
+                break
+
+            if (
+                terminated
+                and env.cumulative_episode % cfg.save_frequency == 0
+                and cfg.save_model
+            ):
+                agent.save()
+
+        if "init_ender" in cfg and cfg.init_ender:
+            break
+
+    agent.testing()
+    terminated = False
+    for __ in range(cfg.testing):
+        obs, info = env.reset()
+        if terminated and cfg.delete_episode_logs:
+            parse_logs()
+        terminated = False
+        while not terminated:
+            act = agent.act(obs)
+            obs, rew, terminated, truncated, info = env.step(act)
+            agent.observe(obs, rew, terminated, info)
+
+    if cfg.save_model:
+        agent.save()
     env.close()
+    if cfg.delete_episode_logs:
+        cleanup_log_dir()
+    return (
+        parse_logs()
+    )  # TODO scan json file for full results and return them for optuna objective evaluation
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

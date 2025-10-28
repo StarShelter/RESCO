@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ['resco_benchmark']
+
+[tool.setuptools.package-data]
+resco_benchmark = ['environments/**']
+
+[project]
+name = "resco-benchmark"
+version = "2.0.0"
+description = "The Reinforcement Learning Benchmarks for Traffic Signal Control (RESCO)"
+urls = { homepage = "https://u.tamu.edu/pistar", repository = "https://github.com/Pi-Star-Lab/RESCO" }
+
+readme = "README.md"
+license = { file = "LICENSE" }
+
+keywords = [
+    "traffic control", "traffic signal control", "traffic signal", "traffic", "traffic light", "intersection",
+    "reinforcement", "reinforcement learning", "machine learning", "artificial intelligence", "benchmark",
+    "RL benchmark", "RL", "deep RL", "deep reinforcement learning", "neural network"
+    ]
+classifiers = [
+    "Development Status :: 5 - Production/Stable", "Environment :: GPU :: NVIDIA CUDA",
+    "Intended Audience :: Education", "Intended Audience :: Science/Research", "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3", "Topic :: Adaptive Technologies", "Topic :: Education",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+    ]
+
+requires-python = ">=3.7"
+dependencies = [
+        'numpy>=1.16.5, <2.0.0',
+        'matplotlib',
+        'eclipse-sumo>=1.17',
+        'traci',
+        'libsumo',
+        'joblib',
+        'GitPython',        # TODO Make git optional
+        'quik_config',
+        'gymnasium',
+        'scipy'
+    ]
+
+[project.optional-dependencies]
+pfrl = ['pfrl>=0.4', 'gym>=0.22.0']
+torch = ['torch>=1.8.1']
+fma2c = ['tensorflow==1.15.5', 'protobuf<=3.20', ]    # tf 1.15.5 needs python 3.7
+optuna = ['optuna', 'pymysql', 'cmaes']
+cl = ['trac-optimizer', 'tensorflow==2.11', 'tensorflow-probability==0.19', 'wandb', 'POT'] # tf 2.11 needs python 3.10
+docs = ['sphinx', 'sphinx-rtd-theme', 'black']

@@ -1,0 +1,157 @@
+(project):
+    (profile_sources):
+        - ./pretty_names.yaml
+        - ./signal.yaml
+        - ./agent.yaml
+    (profiles):
+        (default):
+            controlled_signals: null    # List of signals to control, null for all
+            uncontrolled_policy: MAXPRESSURE  # Policy for non-controlled signals, one of [FIXED, MAXPRESSURE, MAXWAVE]
+
+            action_set: Phase   # [Phase, FixedCyclePlan, FixedCycle]
+            episodes: 100
+            converged: null   # Number of episodes to wait for convergence, null to disable, at least 'episodes' to run
+            log_dir: results
+            gui: False
+            libsumo: True   # C bindings for SUMO, MAC and Windows may be unable to use
+
+            load_sim: null      # UUID of saved sim in log_dir
+            save_model: False   # Whether to save models
+            save_frequency: 20  # Episodes between model saves
+            load_model: null    # UUID of model saved in log_dir
+            load_replay: True   # If a replay exists, load it and continue training - only when load_model set
+
+            training: True
+            testing: 0   # TODO test this, Number of episodes to run after training with exploration turned off
+
+            flow: 1.0   # Scales original traffic demand, 1.0 = original
+            curriculum: null    # TODO is this still implemented?
+
+            max_distance: 200
+            step_length: 5
+            yellow_length: 3
+            clearance_length: 2 # all red after permissive left turn phases, use if SUMO gridlocks in high demand
+            step_ratio: 1   # Number of SUMO steps per step (used for sub 1s microsim update scenarios, not used atm)
+
+            run_hour: null  # One of [peak, null]  only applies to saltlake, null will run from start_date until episode limit
+            clean_nightly: null    # Set to int(0 to 24) to clear all vehicles from the sim at the given hour
+
+            # Logging config
+            log_level: INFO
+            save_console_log: True      # All console output will be saved to a log file in the log_dir, console will be blank
+            delete_episode_logs: True
+
+            seed: null # Unused right now, TODO make fully reproducible runs with seeding
+            gpu: 0
+            flat_state: True
+
+            # Experiment runner config
+            script_launcher: True    # Write shell script to launch experiments instead of running directly
+            processors: 4    # null for all, only when script_launcher is False
+            trials: 5   # Number of independent random-seeded trials
+
+            # Optuna settings
+            optuna_objective: null  # If specified will run an optuna search [fixed, learning_rate]
+            optuna_trials: 1000     # Unlimited if null
+
+            # Result plotting settings
+            error_bars: True
+            smoothing: null
+            xml_metrics: ['timeLoss', 'duration', 'waitingTime']
+            csv_metrics: ['rewards', 'max_queues', 'queue_lengths', 'vehicles', 'phase_length']
+
+            # Direction index assignment
+            directions: ['S-W', 'S-S', 'S-E', 'W-N', 'W-W', 'W-S', 'N-E', 'N-N', 'N-W', 'E-S', 'E-E', 'E-N']
+
+
+
+
+        # Map configurations below
+
+        saltlake2_stateXuniversity:
+            network: saltlake2_stateXuniversity.net.xml
+            route: saltlake2_stateXuniversity.flo.xml
+
+            start_time: 0
+            end_time: 86400
+
+            peak_date: 2023-6-27
+            peak_hour: 61200
+
+            start_date: 2023-1-1
+            end_date: 2024-1-1  # Only used when scanning csv's for peak date
+
+            # Missing data intervals, will be skipped over
+            missing_start: ['2023-02-09 11:20']
+            missing_end: ['2023-02-13 09:05']
+
+        saltlake2_400sX200w:
+            network: saltlake2_400sX200w.net.xml
+            route: saltlake2_400sX200w.flo.xml
+
+            start_time: 0
+            end_time: 86400
+
+            peak_date: 2023-2-3
+            peak_hour: 64800
+
+            start_date: 2023-1-1
+            end_date: 2024-1-1
+
+            missing_start: []
+            missing_end: []
+
+        grid4x4:
+            network: grid4x4.net.xml
+            route: grid4x4
+            start_time: 0    
+            end_time: 3600
+
+
+        arterial4x4:     
+            network: arterial4x4.net.xml
+            route: arterial4x4
+            start_time: 0    
+            end_time: 3600
+
+
+        ingolstadt1:     
+            network: ingolstadt1.net.xml
+            route: ingolstadt1.rou.xml
+            start_time: 57600    
+            end_time: 61200
+
+
+        ingolstadt7:     
+            network: ingolstadt7.net.xml
+            route: ingolstadt7.rou.xml
+            start_time: 57600    
+            end_time: 61200
+
+
+        ingolstadt21:     
+            network: ingolstadt21.net.xml
+            route: ingolstadt21.rou.xml
+            start_time: 57600    
+            end_time: 61200
+
+
+        cologne1:     
+            network: cologne1.net.xml
+            route: cologne1.rou.xml
+            start_time: 25200    
+            end_time: 28800
+
+
+        cologne3:     
+            network: cologne3.net.xml
+            route: cologne3.rou.xml
+            start_time: 25200    
+            end_time: 28800
+
+
+        cologne8:     
+            network: cologne8.net.xml
+            route: cologne8.rou.xml
+            start_time: 25200    
+            end_time: 28800

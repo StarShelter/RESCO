@@ -3,14 +3,6 @@
 <!-- generated on 5/27/2021 11:43:32 AM by Eclipse SUMO netedit Version 1.9.0
 <configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/netconvertConfiguration.xsd">
 
-    <input>
-        <sumo-net-file value="C:\Users\James\Desktop\cologne\cologne8.net.xml"/>
-    </input>
-
-    <output>
-        <output-file value="C:\Users\James\Desktop\cologne\cologne8.net.xml"/>
-    </output>
-
     <processing>
         <geometry.min-radius.fix.railways value="false"/>
         <geometry.max-grade.fix value="false"/>
@@ -37,7 +29,7 @@
 </configuration>
 -->
 
-<net version="1.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
+<net version="1.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://sumo.dlr.de/xsd/net_file.xsd">
 
     <location netOffset="-342498.65,-5630866.92" convBoundary="13565.01,16795.57,14657.34,18337.23" origBoundary="6.166558,50.735925,7.295276,51.840721" projParameter="+proj=utm +zone=32 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"/>
 

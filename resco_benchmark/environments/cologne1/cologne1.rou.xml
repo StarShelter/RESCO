@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://sumo.dlr.de/xsd/routes_file.xsd">
 	<vType id="pkw" vClass="passenger" speedDev="0.1" length="4.3" minGap="1.5"/>
 	<trip id="124779_406_0" type="pkw" depart="25205.00" from="28198821#3" to="32038051#0"/>
 	<trip id="151372_418_0" type="pkw" depart="25207.00" from="130165204" to="32038051#0"/>

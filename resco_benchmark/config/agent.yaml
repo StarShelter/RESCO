@@ -1,0 +1,285 @@
+# The agent.yaml file contains the configuration of the agents used in the benchmark.
+# The agents are defined by their name and the parameters that are used to configure them.
+
+FIXED:
+  module: static.fixed
+  state: wave
+  reward: wait  # Rewards are irrelevant for static agents
+  action_set: Phase
+
+STOCHASTIC:
+  module: static.stochastic
+  state: mplight
+  reward: wait
+
+MAXWAVE:
+  module: static.maxwave
+  state: wave
+  reward: wait
+
+MAXPRESSURE:
+  module: static.maxpressure
+  state: mplight
+  reward: wait
+
+RLCD:
+  module: action_value.rlcd
+  state: rlcd
+  reward: rlcd
+  discount: 0.99
+  epsilon: 0.05
+  alpha: 0.1
+  action_set: PlanPick
+  priority_offset: 2
+  plan_steps: 24
+  regular_limit: 10
+  full_limit: 20
+  M: 360
+  omega: 0.5
+  rho: 0.1
+  min_E: -10
+
+IMultiDQN:
+  module: action_value.multiheaded_dqn
+  state: drq
+  reward: wait
+  learning_rate: 1e-3
+  batch_size: 32
+  discount: 0.99
+  epsilon_begin: 0.0
+  epsilon_end: 0.0
+  target_update_steps: 500
+  buffer_size: 20000
+  buffer_type: uniform
+  epsilon_decay_period: 0.8 # unused
+  number_of_layers: 3
+  number_of_units: 64
+  # Start of multidqn params
+  phase_period: 48
+  expert: maxpressure
+  criteria: std
+  global_buffers: False
+  fixed_buffer: False
+  init_time: 20
+  sample_time: 5
+  model_buffer_size: 86400
+  deviations: 1
+  p_value: 0.05
+  fallback: 20
+  intervals: [50, 100, 200, 300, 400, 500, 600, 700, 800, 1000, 1200, 1400, 1600]
+  # SWOKS
+  num_tasks: 8
+  stablephase: 2160
+  h_len: 240
+  emd_limit: 125
+  kolsmi_buffer: 42
+  adj: 1.1
+  alpha: 0.001
+
+
+ISAC:
+  module: policy.coom_sac
+  state: drq
+  reward: wait
+  learning_rate: 9e-4 # Tuned on 2023-01-24 (randomly selected) 18:00 saltlake1B_state via CMA-ES for 1000 trials
+  replay_size: 20000
+  discount: 0.99
+  number_of_layers: 3
+  number_of_units: 64
+  cl_method: null # one of [null, agem, clonex, ewc, l2, mas, owl, packnet, vcl]
+
+
+SWOKS:
+  module: policy.SWOKS.swoks
+  state: drq
+  reward: wait
+  learning_rate: 0.007
+  discount: 0.99
+  flat_state: False
+  rollout_length: 128
+  num_mini_batches: 32
+  ppo_ratio_clip: 0.1
+  entropy_weight: 0.01
+  gradient_clip: 5
+  num_tasks: 8
+  stablephase: 2160
+  h_len: 240
+  emd_limit: 125
+  kolsmi_buffer: 42
+  adj: 1.1
+  alpha: 0.001
+  rollback: 50
+
+CoSLight:
+  module: policy.CoSLight.coslight
+  state: coslight
+  reward: coslight
+  discount: 0.99
+  use_gae: True
+  gae_lambda: 0.95
+  use_popart: False
+  use_valuenorm: True
+  use_proper_time_limits: False
+  recurrent_N: 1
+  hidden_size: 64
+  use_kl: True
+  use_trans_hidden: True
+  trans_hidden: 64
+  trans_layers: 2
+  trans_heads: 8
+  hidden_layer_size: 12
+  use_K: 1
+  lr: 0.0005
+  critic_lr: 5e-05
+  opti_eps: 1e-05
+  weight_decay: 0
+  gain: 0.01
+  use_orthogonal: True
+  use_policy_active_masks: True
+  use_naive_recurrent_policy: False
+  use_recurrent_policy: True
+  use_ReLU: False
+  use_feature_normalization: True
+  layer_N: 1
+  clip_param: 0.2
+  ppo_epoch: 10
+  num_mini_batch: 4
+  data_chunk_length: 10
+  value_loss_coef: 1
+  entropy_coef: 0.01
+  max_grad_norm: 10
+  huber_delta: 10.0
+  use_max_grad_norm: True
+  use_clipped_value_loss: True
+  use_huber_loss: True
+  use_value_active_masks: True
+  use_3cons: True
+  use_sym_loss: True
+  use_pressure: False
+  epsilon: 1.0
+  state_key: ['current_phase', 'car_num', 'queue_length', 'occupancy', 'flow', 'stop_car_num', 'pressure']
+  demand_shape: 7
+
+
+IDQN:
+  module: action_value.pfrl_dqn
+  state: drq
+  reward: wait
+  learning_rate: 1e-3
+  batch_size: 32
+  discount: 0.99
+  epsilon_begin: 1.0
+  epsilon_end: 0.0
+  target_update_steps: 500
+  buffer_size: 20000
+  buffer_type: uniform
+  epsilon_decay_period: 0.8 # 80% of the total number of episodes
+  number_of_layers: 3
+  number_of_units: 64
+  # Following are parameters only when using state_builder or reward_builder
+  vehicles_detailed: 0
+  state_builder: [
+      "lane_aggregate", "direction_aggregate", "arrived", "departed",
+      "phase_timers", "approaching", "queued",
+      "effective_running", "average_wait", "average_delay", "average_speed",
+      "average_acceleration", "average_deceleration", "max_wait", "max_delay",
+      "max_speed", "max_acceleration", "max_deceleration", "min_wait",
+      "min_delay", "min_speed", "min_acceleration", "min_deceleration", "wait",
+      "delay", "speed", "acceleration", "deceleration", "time", "pressure",
+      "downstream_arrived", "downstream_departed", "downstream_phase_timers",
+      "downstream_pressure", "downstream_approaching",
+      "downstream_queued", "downstream_effective_running",
+      "downstream_average_wait", "downstream_average_delay",
+      "downstream_average_speed", "downstream_average_acceleration",
+      "downstream_average_deceleration", "downstream_max_wait",
+      "downstream_max_delay", "downstream_max_speed", "downstream_max_acceleration",
+      "downstream_max_deceleration", "downstream_min_wait", "downstream_min_delay",
+      "downstream_min_speed", "downstream_min_acceleration",
+      "downstream_min_deceleration", "downstream_wait", "downstream_delay",
+      "downstream_speed", "downstream_acceleration", "downstream_deceleration",
+  ]
+  reward_builder: ["average_wait"]
+  reward_aggregation: "sum"
+  reward_scale: -1
+
+
+MPLight:
+  module: action_value.mplight
+  state: mplight
+  reward: pressure
+  learning_rate: 1e-3
+  demand_shape: 1 # Size of per-direction demand input, 1 for pressure per direction mplight state
+  batch_size: 32
+  discount: 0.99
+  epsilon_begin: 1.0
+  epsilon_end: 0.0
+  target_update_steps: 500
+  buffer_size: 20000
+  buffer_type: uniform
+  epsilon_decay_period: 0.8
+
+
+AdvancedMPLight:
+  module: action_value.advanced_mplight
+  state: advanced_mplight
+  reward: pressure
+  learning_rate: 1e-3
+  demand_shape: 1
+  batch_size: 32
+  discount: 0.99
+  epsilon_begin: 1.0
+  epsilon_end: 0.0
+  target_update_steps: 500
+  buffer_size: 20000
+  buffer_type: uniform
+  epsilon_decay_period: 0.8
+
+
+IPPO:
+  module: policy.pfrl_ppo
+  state: drq
+  reward: wait
+  learning_rate: 2.5e-5
+  number_of_layers: 3
+  number_of_units: 64
+  adam_epsilon: 1e-5
+  clip_eps: 0.1
+  update_interval: 1024
+  batch_size: 256
+  epochs: 4
+  entropy_coef: 0.001
+  max_grad_norm: 0.5
+  standardize_advantages: True
+
+
+FMA2C:
+  module: policy.fma2c
+  state: fma2c
+  reward: fma2c
+  learning_rate: 1e-3
+  management_acts: 4
+  rmsp_alpha: 0.99
+  rmsp_epsilon: 1e-5
+  max_grad_norm: 40
+  gamma: 0.96
+  lr_init: 2.5e-4
+  lr_decay: constant
+  entropy_coef_init: 0.001
+  entropy_coef_min: 0.001
+  entropy_decay: constant
+  entropy_ratio: 0.5
+  value_coef: 0.5
+  num_lstm: 64
+  num_fw: 128
+  num_ft: 32
+  num_fp: 64
+  batch_size: 120
+  reward_norm: 2000.0
+  reward_clip: 2.0
+  coef: 0.4
+  coop_gamma: 0.9
+  clip_wave: 4.0
+  clip_wait: 4.0
+  norm_wave: 5.0
+  norm_wait: 100.0
+  alpha: 0.75
