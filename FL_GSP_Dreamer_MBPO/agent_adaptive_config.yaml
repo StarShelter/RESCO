@@ -1,0 +1,217 @@
+# ==================== Adaptive Model-Based IDQN Configuration ====================
+#
+# 核心改进：动态控制real/synthetic比例和horizon
+#
+# 关键概念：
+# 1. Real data保底：min_real_ratio确保真实数据最小比例（如50%）
+# 2. Synthetic data作为增量：根据WM质量动态增加
+# 3. Horizon动态增长：从小horizon逐步增加，避免early阶段的compounding error
+# 4. Quality监控：根据WM质量自适应调整策略
+#
+# ====================================================================================
+
+# ==================== Dyna版本：Adaptive Synthetic Batch Control ====================
+# 
+# 核心策略：
+# - Real data batch固定（如32），确保训练信号强度
+# - Synthetic data batch动态增加（0到max_synthetic_batch），作为增量bonus
+# - 总batch size = 32 (real) + X (synthetic)，X根据WM质量动态调整
+#
+MBIDQN_Dyna_FL_GSP_Fixed_V2_Adaptive:
+  module: action_value.mbidqn_dyna_fl_gsp_fixed_v2_adaptive
+  state: drq
+  reward: wait
+  
+  # ==================== Learning Rates ====================
+  learning_rate: 1e-3              # Q-Network学习率
+  lr_world_model: 5e-4             # World Model学习率（Dyna可以稍大）
+  
+  # ==================== FL配置 ====================
+  fl_interval: 100                 # FL聚合间隔（每100步）
+  aggregation_method: quality_weighted  # 质量加权聚合
+  alpha_fedprox: 0.01              # FedProx正则化系数
+  
+  # ==================== GSP配置 ====================
+  global_dim: 64                   # 全局状态预测维度
+  alpha_contrastive: 0.1           # GSP对比损失权重
+  contrastive_temperature: 0.1     # InfoNCE温度
+  gsp_sync_threshold: 0.8          # GSP同步阈值
+  
+  # ==================== RSSM配置 ====================
+  seq_length: 50                   # 序列长度（必须连续采样！）
+  model_train_freq: 1              # WM训练频率
+  
+  # ==================== ⭐ Adaptive Control配置 - CORE ⭐ ====================
+  # 
+  # Real batch固定：
+  batch_size: 32                   # Real data每次固定32个样本（不变！）
+  
+  # Synthetic batch动态增量：
+  max_synthetic_batch: 64          # Synthetic data最大batch size（增量上限）
+                                   # 例如：quality=0 → synthetic=0, quality=1.0 → synthetic=64
+  adaptive_factor: 1.0             # 自适应调整因子（控制增长速度）
+                                   # synthetic = (quality - threshold) / (1 - threshold) * factor * max
+  
+  # Horizon动态增长：
+  initial_horizon: 1               # 初始imagination horizon（从1步开始）
+  imagination_horizon: 5           # 最大imagination horizon（逐步增长到5步）
+  horizon_increase_freq: 10        # 每10个episodes增加1步horizon
+  
+  # ==================== Dyna配置 ====================
+  num_imagined_rollouts: 1         # 每次生成的imagined轨迹数量
+  imagination_freq: 5              # 每5步生成一次imagined data
+  
+  # ==================== Early阶段保护 ====================
+  model_warmup_steps: 1000         # 前1000步不使用imagination
+  min_wm_quality: 0.3              # WM质量阈值（低于此值不用synthetic data）
+  
+  # ==================== Q-Network配置 ====================
+  discount: 0.99
+  target_update_steps: 500
+  number_of_layers: 3
+  number_of_units: 128
+  
+  # ==================== Exploration ====================
+  epsilon_begin: 1.0
+  epsilon_end: 0.1
+  epsilon_decay_period: 100000
+  
+  # ==================== Buffer ====================
+  buffer_size: 50000
+  
+  # ==================== Optimizer ====================
+  rmsprop_decay: 0.95
+  rmsprop_epsilon: 0.00001
+  rmsprop_momentum: 0.0
+
+
+# ==================== True版本：Adaptive Imagination Horizon ====================
+# 
+# 策略：
+# - 不需要real/synthetic混合（Q在imagination中训练）
+# - Horizon从initial_horizon逐步增长
+# - 根据WM质量动态调整horizon（quality_scaling=True）
+#
+MBIDQN_True_FL_GSP_Fixed_V2_Adaptive:
+  module: action_value.mbidqn_true_fl_gsp_fixed_v2_adaptive
+  state: drq
+  reward: wait
+  
+  # ==================== Learning Rates ====================
+  learning_rate: 5e-4              # Q-Network学习率（True版本稍小）
+  lr_world_model: 1e-4             # World Model学习率（更保守）
+  
+  # ==================== FL配置 ====================
+  fl_interval: 100
+  aggregation_method: quality_weighted
+  alpha_fedprox: 0.01
+  
+  # ==================== GSP配置 ====================
+  global_dim: 64
+  alpha_contrastive: 0.1
+  contrastive_temperature: 0.1
+  gsp_sync_threshold: 0.8
+  
+  # ==================== RSSM配置 ====================
+  seq_length: 50
+  model_train_freq: 1
+  
+  # ==================== ⭐ Adaptive Imagination配置 - CORE ⭐ ====================
+  # 
+  # Horizon动态增长：
+  initial_horizon: 1               # 初始horizon（从1步开始，避免early compounding error）
+  imagination_horizon: 5           # 最大horizon（逐步增长到5步）
+  horizon_increase_freq: 10        # 每10个episodes增加1步
+  quality_scaling: True            # 根据WM质量动态调整horizon
+                                   # quality < 0.5 → horizon - 2
+                                   # quality > 0.8 → horizon + 1
+  
+  # ==================== Early阶段保护 ====================
+  model_warmup_steps: 1000         # 前1000步不在imagination中训练Q
+  min_wm_quality: 0.3              # WM质量阈值
+  
+  # ==================== Q-Network配置 ====================
+  batch_size: 32
+  discount: 0.99
+  target_update_steps: 500
+  number_of_layers: 3
+  number_of_units: 128
+  
+  # ==================== Exploration ====================
+  epsilon_begin: 1.0
+  epsilon_end: 0.1
+  epsilon_decay_period: 100000
+  
+  # ==================== Buffer ====================
+  buffer_size: 50000
+  
+  # ==================== Optimizer ====================
+  rmsprop_decay: 0.95
+  rmsprop_epsilon: 0.00001
+  rmsprop_momentum: 0.0
+
+
+# ==================== 配置说明 ====================
+#
+# 1. Dyna vs True的区别：
+#    - Dyna: 控制real/synthetic比例（因为生成数据到buffer）
+#    - True: 只控制imagination horizon（Q在imagination中训练）
+#
+# 2. 核心超参数调优建议：
+#    
+#    min_real_ratio (Dyna):
+#    - 越大越保守（更多real data）
+#    - 推荐：0.5-0.7
+#    - 如果WM质量不稳定，增大此值
+#    
+#    initial_horizon:
+#    - 越小越保守（减少early compounding error）
+#    - 推荐：1-2
+#    - Early阶段从小horizon开始很重要！
+#    
+#    imagination_horizon:
+#    - 最终的最大horizon
+#    - 推荐：3-7
+#    - 取决于任务复杂度和WM质量
+#    
+#    horizon_increase_freq:
+#    - 越大越保守（horizon增长越慢）
+#    - 推荐：10-20
+#    - 让WM有充分时间提高质量
+#    
+#    adaptive_factor (Dyna):
+#    - 控制质量对比例的影响程度
+#    - 推荐：0.3-0.7
+#    - 越大，质量好时synthetic比例越高
+#    
+#    quality_scaling (True):
+#    - True: 根据质量动态调整horizon
+#    - False: 只按episode增长，不看质量
+#    - 推荐：True（更安全）
+#
+# 3. 典型训练过程：
+#    
+#    Episode 0-10:
+#    - Warmup阶段，100% real data
+#    - Horizon = 1
+#    
+#    Episode 10-20:
+#    - WM质量提升
+#    - Dyna: Real ratio 80% → 60%
+#    - Horizon = 1 → 2
+#    
+#    Episode 20-50:
+#    - WM质量稳定
+#    - Dyna: Real ratio 60% → 50%
+#    - Horizon = 2 → 5
+#    
+#    Episode 50+:
+#    - 稳定阶段
+#    - Dyna: Real ratio ~50-60%（根据质量波动）
+#    - Horizon = 5（质量好时）或3-4（质量差时）
+#
+# 4. Debug建议：
+#    - 观察log中的adaptive controller统计信息
+#    - 监控WM质量、real_ratio、horizon的变化
+#    - 如果performance不稳定，增大min_real_ratio或减小max_synthetic_ratio
+#    - 如果convergence太慢，可以减小horizon_increase_freq

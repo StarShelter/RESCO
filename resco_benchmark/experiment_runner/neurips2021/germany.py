@@ -9,7 +9,8 @@ maps = [
     "ingolstadt21",
 ]
 
-algs = ["FIXED", "MAXWAVE", "MAXPRESSURE", "IDQN", "MPLight", "IPPO"]
+algs = ["IDQN"]
+# algs = ["FIXED", "MAXWAVE", "MAXPRESSURE", "IDQN", "MPLight", "IPPO"]
 # algs = ["FMA2C"]  # Requires old python
 
 

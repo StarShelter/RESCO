@@ -5,7 +5,8 @@ maps = [
     "arterial4x4",
 ]
 
-algs = ["FIXED", "MAXWAVE", "MAXPRESSURE", "IDQN", "MPLight", "IPPO"]
+algs = ["IPPO"]
+# algs = ["FIXED", "MAXWAVE", "MAXPRESSURE", "IDQN", "MPLight", "IPPO"]
 # algs = ["FMA2C"]  # Requires old python
 
 

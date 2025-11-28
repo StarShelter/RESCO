@@ -46,7 +46,8 @@
             flat_state: True
 
             # Experiment runner config
-            script_launcher: True    # Write shell script to launch experiments instead of running directly
+            # script_launcher: True    # Write shell script to launch experiments instead of running directly
+            script_launcher: False
             processors: 4    # null for all, only when script_launcher is False
             trials: 5   # Number of independent random-seeded trials
 
